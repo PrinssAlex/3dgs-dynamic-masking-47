@@ -1,0 +1,4 @@
+Model,PSNR_mean_dB,L1_static_error
+Baseline,9.0,0.1067
+Loss-Mask,18.35,0.0
+Ray-Filter,9.04,0.0
