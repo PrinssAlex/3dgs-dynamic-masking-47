@@ -1,0 +1,25 @@
+# Data & outputs (too large for GitHub)
+data/generated/images/
+data/generated/masks/
+output/*/point_cloud/
+output/*/chkpnt*.pth
+output/*/*.pth
+
+# Colab/Python
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+*.egg-info/
+.Python
+
+# OS
+.DS_Store
+*.swp
+.vscode/
+
+# Large files (>100MB)
+*.tar.gz
+*.zip
+
+# Notebooks (keep locally, don't push)
+*.ipynb
