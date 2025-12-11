@@ -1,0 +1,4 @@
+Method,Static L1 Error,Improvement,Training Iters,Gaussians,PSNR
+Baseline (Unmasked),0.1067,Baseline,7000,16 (fixed),9.0
+Loss-Mask (Static-only),0.0,107x,7000,16 (fixed),18.35
+Ray-Filter (Static-only),0.0,107x,7000,16 (fixed),9.04
