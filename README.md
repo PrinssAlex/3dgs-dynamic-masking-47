@@ -251,11 +251,11 @@ gaussian-splatting/
 ### Results
 A brief summary of the results shows that both the loss masking and ray filtering strategies outperform the baseline model in terms of artifact reduction and overall visual quality. The quantitative metrics in `metrics_comparison.csv` provide a detailed comparison of the performance of the three models.
 ## Key Results
-| Strategy | Static L1 Error | PSNR (dB) | Improvement |
+| Model|PSNR_mean_dB |SSIM_mean |Static L1 Error|
 |----------|-----------------|-----------|-------------|
-| Baseline | 0.1067 | 9.00 | — |
-| Loss Masking | 0.0000 | 18.35 | 107x |
-| Ray Filtering | 0.0000 | 9.04 | 107x |
+| Baseline | 9.05 | 0.784 | 0.506|0.0
+| Loss Masking | 18.35 |0.88 | 0.08 |0.0
+| Ray Filtering |9.04 | 0.65 | 0.24|0.0
 
 ## Description of the Obtained Results
 The results of our experiments, including the trained models, rendered images, and performance metrics, are available in the results folder.
