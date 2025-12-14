@@ -211,8 +211,9 @@ computed over local windows and averaged.[^4]
 
 - LPIPS as a learned perceptual distance in a deep feature space between $I_{\theta}$ and $I_{\text{gt}}$.[^5][^3]
 
-The folder is structured as follows:
+
 ### Project Structure
+The folder is structured as follows:
  ```
 data/
 ├──pybullet_dataset
