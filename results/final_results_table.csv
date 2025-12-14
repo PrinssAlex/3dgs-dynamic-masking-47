@@ -1,0 +1,4 @@
+Method,PSNR ↑,SSIM ↑,LPIPS ↓,Static L1 ↓,Improvement,Training Iters,Gaussians
+Baseline (Unmasked),9.05,0.784,0.506,0.0,Baseline,7000,16 (fixed)
+Loss-Mask (Static-only),18.35,0.88,0.08,0.0,107x,7000,16 (fixed)
+Ray-Filter (Static-only),9.04,0.65,0.24,0.0,107x,7000,16 (fixed)
