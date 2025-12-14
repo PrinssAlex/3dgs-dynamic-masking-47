@@ -46,14 +46,14 @@ This project was developed and executed on **Google Colab Pro** using a **T4 GPU
 
 3.  **Install the required Python dependencies:**
 
-    It is recommended to use a virtual environment.
+    It is recommended to use a virtual environment(Pybullet).
 
     ```bash	
     # PyTorch CUDA 11.8 (matches 3DGS)
     !pip install --quiet torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
 
     # Core: PyBullet, OpenCV, COLMAP Python bindings
-   !pip install --quiet pybullet opencv-python-headless
+    !pip install --quiet pybullet opencv-python-headless
 
     # Metrics: PSNR/SSIM (skimage), LPIPS
     !pip install --quiet scikit-image lpips
