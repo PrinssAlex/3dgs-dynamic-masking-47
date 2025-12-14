@@ -48,10 +48,21 @@ This project was developed and executed on **Google Colab Pro** using a **T4 GPU
 
     It is recommended to use a virtual environment.
 
-    ```bash
-    pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
-    pip install opencv-python ultralytics matplotlib scikit-learn lpips
-    pip install -e .
+    ```bash	
+    # PyTorch CUDA 11.8 (matches 3DGS)
+    !pip install --quiet torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+
+    # Core: PyBullet, OpenCV, COLMAP Python bindings
+   !pip install --quiet pybullet opencv-python-headless
+
+    # Metrics: PSNR/SSIM (skimage), LPIPS
+    !pip install --quiet scikit-image lpips
+
+    # Utilities: tqdm, matplotlib, imageio (for GIFs)
+    !pip install --quiet tqdm matplotlib imageio
+
+    # pycolmap for synthetic COLMAP conversion (install last to avoid deps)
+    !pip install --quiet pycolmap
     ```
 
 ## Running and Usage
@@ -63,21 +74,30 @@ Here are the instructions to run the different parts of the project.
 *   **Baseline Model (no masking):**
 
     ```bash
-    python train.py -s /3dgs-dynamic-masking-47/data/generated -m /3dgs-dynamic-masking-47/output/baseline --iterations 5000
+    !python train.py \
+    -s "/content/drive/MyDrive/MLP/3dgs-dynamic-masking/data/generated" \
+    -m "/content/drive/MyDrive/MLP/3dgs-dynamic-masking/output/baseline" \
+    --iterations 7000 \
+    --eval \
+    --white_background \
+    --densify_from_iter 0 \
+    --densify_until_iter 0 \
+    --densification_interval 1000000 \
+    --opacity_reset_interval 1000000
     ```
 
 **Strategy 1: Loss Masking:**
 
     ```bash
-    python train_loss_mask.py -s /3dgs-dynamic-masking-47/data/generated -m /3dgs-dynamic-masking-47/output/loss_mask --iterations 5000 --mask_dir c
+    !python train_loss_mask.py -s /content/drive/MyDrive/MLP/3dgs-dynamic-masking/data/generated -m //content/drive/MyDrive/MLP/3dgs-dynamic-masking/output/loss_mask --iterations 5000 --mask_dir c
     ```
 
 **Strategy 2: Ray Filtering:**
 
     ```bash
-    python train_ray_filter.py -s /3dgs-dynamic-masking-47/data/generated -m /3dgs-dynamic-masking-47/output/ray_filter --iterations 5000 --mask_dir /3dgs-dynamic-masking-47/data/generated/masks
+    python train_ray_filter.py -s /content/drive/MyDrive/MLP/3dgs-dynamic-masking/data/generated -m //content/drive/MyDrive/MLP/3dgs-dynamic-masking/output/ray_filter --iterations 7000 --mask_dir /3dgs-dynamic-masking-47/data/generated/masks
     ```
-    *Note: The training scripts `train_loss_mask.py` and `train_ray_filter.py` are modified versions of the original `train.py` script from the 3DGS repository.*
+Note: The training scripts `train_loss_mask.py` and `train_ray_filter.py` are modified versions of the original `train.py` script from the 3DGS repository.*
 
 ## THEORETICAL BACKGROUND:
 
