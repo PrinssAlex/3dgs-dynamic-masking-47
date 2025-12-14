@@ -23,9 +23,8 @@ A video demonstrating the results of our project can be found here: (https://git
 
 You can also find a GIF animation of the results below:
 
-![GIF of results]
-https://github.com/PrinssAlex/3dgs-dynamic-masking-47/blob/main/Image%20and%20Videos/images.gif
-(https://github.com/jacob936/Improving-the-Robustness-of-Gaussian-splatting-by-masking-dynamic-Objects/blob/main/Image%20and%20Videos/masks.gif)
+![GIF of results](https://github.com/PrinssAlex/3dgs-dynamic-masking-47/blob/main/Image%20and%20Videos/images.gif)
+![GIF of results](https://github.com/PrinssAlex/3dgs-dynamic-masking-47/blob/main/Image%20and%20Videos/masks.gif)
 
 ## Installation and Deployment
 
