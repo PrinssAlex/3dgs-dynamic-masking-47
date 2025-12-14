@@ -1,0 +1,4 @@
+Model,PSNR_mean_dB,SSIM_mean,LPIPS_mean,L1_static_error
+Baseline,9.05,0.784,0.506,0.0
+Loss-Mask,18.35,0.88,0.08,0.0
+Ray-Filter,9.04,0.65,0.24,0.0
