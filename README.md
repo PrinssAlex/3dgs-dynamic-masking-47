@@ -110,9 +110,10 @@ Instead of computing the loss over all pixels, we multiply the pixelwise error b
 
 This produces a masked loss:
 
-\[
+$$
 \mathcal{L}_{\text{mask}} = \frac{\sum_{u} M(u)\,\text{error}(u)}{\sum_{u} M(u) + \varepsilon},
-\]
+\
+$$
 
 where \(\text{error}(u)\) can be the L1 error or a combination of L1 and other terms, and \(\varepsilon\) prevents division by zero. Gradients are therefore propagated only from static background pixels.
 
@@ -187,17 +188,12 @@ Key concepts:
 - **Depth sorting:** Ordering Gaussians along each ray by distance from the camera so that alpha compositing correctly models occlusion.
 
 ***
-
 ## Evaluation Metrics – PSNR
-
 We use PSNR (Peak Signal‑to‑Noise Ratio) to quantify pixelwise fidelity between rendered and ground‑truth images. PSNR is derived from mean squared error (MSE): lower MSE corresponds to higher PSNR, expressed in decibels.
-
 Key concepts:
-
 - **MSE (mean squared error):** The average squared difference between rendered and ground‑truth pixel values.  
 - **Dynamic range:** It is crucial to use the correct pixel scale (e.g.  vs ) when computing MSE and MAX; otherwise PSNR values are meaningless.[1]
 - **Interpretation:** PSNR is useful for comparing different model variants numerically, but images with similar PSNR may still look noticeably different perceptually.
-
 ***
 
 ## Evaluation Metrics – SSIM
@@ -334,6 +330,86 @@ $$
 
 where $\tau$ is a scaling factor controlling opacity.
 
+
+# The rasterization formula for projecting a 3D Gaussian to 2D
+
+A 3D Gaussian projects to an anisotropic 2D Gaussian ellipse whose mean and covariance come from applying the camera transform and the projection Jacobian to the 3D Gaussian parameters.[^1][^2]
+
+## Setup
+
+Let a 3D Gaussian in world space be
+
+$$
+\mathcal{N}(x;\,\mu_{3D}, \Sigma_{3D}), \quad x \in \mathbb{R}^3,
+$$
+
+with mean $\mu_{3D} \in \mathbb{R}^3$ and covariance $\Sigma_{3D} \in \mathbb{R}^{3 \times 3}$.[^3]
+
+A pinhole camera is defined by extrinsics $R \in \mathbb{R}^{3\times 3}, t \in \mathbb{R}^3$ and intrinsics $K \in \mathbb{R}^{3\times 3}$.[^4]
+
+## Step 1: World → camera space
+
+Transform the Gaussian mean and covariance into camera space:
+
+$$
+\mu_{\text{cam}} = R\,\mu_{3D} + t,
+$$
+
+$$
+\Sigma_{\text{cam}} = R\,\Sigma_{3D}\,R^\top.
+$$
+
+This uses the fact that for an affine transform $x' = A x + b$, the covariance transforms as $\Sigma' = A \Sigma A^\top$.[^5][^2]
+
+## Step 2: Camera → image plane
+
+The perspective projection (before dividing by depth) is
+
+$$
+p = K\,[\,\mu_{\text{cam}}\,], \quad
+p = \begin{bmatrix} \tilde{u} \\ \tilde{v} \\ \tilde{w} \end{bmatrix},
+$$
+
+and the 2D pixel center is
+
+$$
+\mu_{2D} =
+\begin{bmatrix}
+u \\ v
+\end{bmatrix}
+=**
+\begin{bmatrix}
+\tilde{u} / \tilde{w} \\
+\tilde{v} / \tilde{w}
+\end{bmatrix}.**
+$$[^4]
+
+To get the 2D covariance, we linearize the projection around $\mu_{\text{cam}}$. Let $\Pi: \mathbb{R}^3 \to \mathbb{R}^2$ be the projection and $J$ its Jacobian at $\mu_{\text{cam}}$:
+
+$$
+J = \left.\frac{\partial \Pi(x)}{\partial x}\right|_{x=\mu_{\text{cam}}}
+\in \mathbb{R}^{2\times 3}.
+$$[^1][^5]
+
+Then the 2D covariance is
+
+$$
+\Sigma_{2D} = J\,\Sigma_{\text{cam}}\,J^\top
+\in \mathbb{R}^{2\times 2}.
+$$[^2]
+
+This is the core rasterization formula used in 3DGS implementations (often written as $\Sigma_{2D} = T\,\Sigma_{3D}\,T^\top$ with $T$ the combined world–to–screen Jacobian).[^6][^1]
+
+## Final 2D Gaussian (splat) in screen space
+
+The projected 2D Gaussian used for splatting at pixel position $u \in \mathbb{R}^2$ is
+
+$$
+G(u) = \exp\!\left(
+-\tfrac{1}{2} (u - \mu_{2D})^\top \Sigma_{2D}^{-1} (u - \mu_{2D})
+\right).
+$$[^7][^8]
+
 ## Photometric loss without masking
 
 Given a ground-truth image $I_{\text{gt}}$ and rendered image $I_{\theta}$ (parameters $\theta$ are all Gaussian attributes), a standard photometric loss is
@@ -347,7 +423,7 @@ where $\lambda_1$ and $\lambda_{\text{ssim}}$ weight the L1 and SSIM components 
 
 ## Loss masking with static/dynamic masks
 
-Let M(u) \in \{0,1\} be a binary mask for pixel u, where M(u)=1 denotes static background and M(u)=0 denotes dynamic regions to be ignored. The masked photometric loss can be written as
+Let M(u)\in \{0,1\} be a binary mask for pixel u, where M(u)=1 denotes static background and M(u)=0 denotes dynamic regions to be ignored. The masked photometric loss can be written as
 
 $$
 \mathcal{L}_{\text{mask}} =
@@ -396,29 +472,70 @@ This formulation makes the connection between “skipping Gaussians on dynamic p
 
 ## Evaluation metrics
 
-You can also explicitly write the metrics you already compute:
+# Give PSNR SSIM and LPIPS evaluation formulas and usage tips
 
-- PSNR between $I_{\theta}$ and $I_{\text{gt}}$:
+
+## PSNR
+
+Given a ground‑truth image $I_{\text{gt}}$ and a reconstructed image $I$, first compute mean squared error
 
 $$
-\text{PSNR} = 10 \log_{10} \left(
-\frac{\text{MAX}^2}{\text{MSE}(I_{\theta}, I_{\text{gt}})}
-\right),
+\text{MSE} = \frac{1}{N}\sum_{u} \bigl(I(u) - I_{\text{gt}}(u)\bigr)^2,
 $$
 
-where MAX is the maximum possible pixel value and MSE is mean squared error.[^9]
+then
 
-- SSIM averaged over the image:
+$$
+\text{PSNR} = 10 \log_{10} \left(\frac{\text{MAX}^2}{\text{MSE}}\right),
+$$
+
+where MAX is the maximum possible pixel value (e.g. 1.0 for normalized images or 255 for 8‑bit images).[^1][^2]
+
+**Usage tips:**
+
+- Higher is better; typical NeRF/3DGS experiments report values in dB, often in the 20–40 dB range.[^3][^4]
+- Very sensitive to small pixel differences and outliers; good for sanity checks and ablations, but does not always correlate with perceived quality.[^2][^5]
+- Always ensure same resolution, alignment, and dynamic range between $I$ and $I_{\text{gt}}$; a wrong scaling (e.g. computing MSE on 0–255 but MAX=1) completely breaks PSNR.[^6][^7]
+
+
+## SSIM
+
+SSIM between local patches $x$ and $y$ (from $I$ and $I_{\text{gt}}$) is
 
 $$
 \text{SSIM}(x, y) =
-\frac{(2\mu_x\mu_y + C_1)(2\sigma_{xy} + C_2)}
+\frac{(2\mu_x \mu_y + C_1)(2\sigma_{xy} + C_2)}
 {(\mu_x^2 + \mu_y^2 + C_1)(\sigma_x^2 + \sigma_y^2 + C_2)},
 $$
 
-computed over local windows and averaged.[^4]
+where $$\mu_x, \mu_y$$ are local means, $$\sigma_x^2, \sigma_y^2$$ local variances, $$\sigma_{xy}$$ local covariance, and $$C_1, C_2$$ small constants for numerical stability. The image‑level SSIM is the average of this value over all windows.[^8][^9][^10]
 
-- LPIPS as a learned perceptual distance in a deep feature space between $I_{\theta}$ and $I_{\text{gt}}$.[^5][^3]
+**Usage tips:**
+
+- Values are typically in $$[0,1]$$ for practical settings; closer to 1 means more structurally similar.[^10][^8]
+- Better correlates with human perception than PSNR, because it compares luminance, contrast, and structure rather than raw pixel error.[^4][^8]
+- Use grayscale or luminance (Y) channel for standard reporting; for 3DGS/NeRF, report mean SSIM over all test views, possibly alongside PSNR.[^5][^10]
+
+
+## LPIPS
+
+LPIPS measures perceptual distance in a deep feature space. Given images $$x$$ and $$x_0$$, pass them through a pretrained network (e.g. AlexNet/VGG) and let $$y_l, y_{0,l} \in \mathbb{R}^{H_l \times W_l \times C_l}$$ be normalized feature maps at layer $$l$$. The LPIPS distance is[^11][^12][^13]
+
+$$
+d(x, x_0) = \sum_{l} \frac{1}{H_l W_l}
+\sum_{h,w} \left\| w_l \odot \bigl(\hat{y}_{l}(h,w) - \hat{y}_{0,l}(h,w)\bigr) \right\|_2^2,
+$$
+
+where $$\hat{y}_l$$ are channel‑wise unit‑normalized features and $$w_l$$ are learned per‑channel weights.[^14][^13]
+
+**Usage tips:**
+
+- Lower is better; 0 means identical in the chosen feature space.[^15][^11]
+- Much better aligned with human judgments of perceptual similarity than PSNR/SSIM, especially for small misalignments, blur, or texture differences.[^12][^13]
+- In code, prefer a standard implementation (e.g. `pip install lpips` and use the official PyTorch interface) and fix the backbone (e.g. `net='vgg'`) so your scores are comparable across experiments.[^13][^15]
+
+For your README you can add a short paragraph explaining that you report “higher‑is‑better” metrics (PSNR, SSIM) and a “lower‑is‑better” perceptual metric (LPIPS), and mention that you average them over all held‑out views in the test set.
+<span style="display:none">[^16][^17][^18][^19][^20]</span>
 
 
 ### Project Structure
