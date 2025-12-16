@@ -137,7 +137,7 @@ Ray filtering enforces masking at the level of ray sampling and rendering.
 We explore two equivalent ways to apply this idea:
 
 - **Ray selection:** Only sample rays that pass through static pixels, completely ignoring rays whose corresponding pixels are dynamic. In this case, dynamic regions are never even considered in the loss.  
-- **Contribution masking:** For rays passing through a dynamic pixel, we set the contribution of Gaussians to zero (e.g. \(\alpha_i^{\text{eff}}(u) = M(u)\,\alpha_i(u)\)), effectively removing those rays from the optimization.
+- **Contribution masking:** For rays passing through a dynamic pixel, we set the contribution of Gaussians to zero (e.g. $$\alpha_i^{\text{eff}}(u) = M(u)\,\alpha_i(u)\)$$, effectively removing those rays from the optimization.
 
 In both variants, the training signal from dynamic regions is removed more directly than in loss masking, which operates only at the loss level.
 
@@ -183,7 +183,7 @@ Here we explain how a 3D Gaussian is turned into a 2D splat suitable for rasteri
 
 Key concepts:
 
-- **Covariance projection:** The 2D covariance is computed as \(\Sigma_{2D} = J \Sigma_{3D} J^\top\), where \(J\) is the Jacobian of the projection at the Gaussian’s center.  
+- **Covariance projection:** The 2D covariance is computed as $$\Sigma_{2D} = J \Sigma_{3D} J^\top\$$, where $$J\$$ is the Jacobian of the projection at the Gaussian’s center.  
 - **Screen‑space ellipse:** The visible “shadow” of the 3D Gaussian in image coordinates, which defines how wide and oriented the splat is.  
 - **Depth sorting:** Ordering Gaussians along each ray by distance from the camera so that alpha compositing correctly models occlusion.
 
@@ -198,7 +198,7 @@ Key concepts:
 
 ## Evaluation Metrics – SSIM
 
-We also report SSIM (Structural Similarity Index) as a more perceptual metric. SSIM compares local patterns of luminance, contrast, and structure, and is computed over small windows and averaged, yielding scores typically in the range \([0,1]\).
+We also report SSIM (Structural Similarity Index) as a more perceptual metric. SSIM compares local patterns of luminance, contrast, and structure, and is computed over small windows and averaged, yielding scores typically in the range $$[0,1]\$$.
 
 Key concepts:
 
@@ -331,84 +331,6 @@ $$
 where $\tau$ is a scaling factor controlling opacity.
 
 
-# The rasterization formula for projecting a 3D Gaussian to 2D
-
-A 3D Gaussian projects to an anisotropic 2D Gaussian ellipse whose mean and covariance come from applying the camera transform and the projection Jacobian to the 3D Gaussian parameters.[^1][^2]
-
-## Setup
-
-Let a 3D Gaussian in world space be
-
-$$
-\mathcal{N}(x;\,\mu_{3D}, \Sigma_{3D}), \quad x \in \mathbb{R}^3,
-$$
-
-with mean $\mu_{3D} \in \mathbb{R}^3$ and covariance $\Sigma_{3D} \in \mathbb{R}^{3 \times 3}$.[^3]
-
-A pinhole camera is defined by extrinsics $R \in \mathbb{R}^{3\times 3}, t \in \mathbb{R}^3$ and intrinsics $K \in \mathbb{R}^{3\times 3}$.[^4]
-
-## Step 1: World → camera space
-
-Transform the Gaussian mean and covariance into camera space:
-
-$$
-\mu_{\text{cam}} = R\,\mu_{3D} + t,
-$$
-
-$$
-\Sigma_{\text{cam}} = R\,\Sigma_{3D}\,R^\top.
-$$
-
-This uses the fact that for an affine transform $x' = A x + b$, the covariance transforms as $\Sigma' = A \Sigma A^\top$.[^5][^2]
-
-## Step 2: Camera → image plane
-
-The perspective projection (before dividing by depth) is
-
-$$
-p = K\,[\,\mu_{\text{cam}}\,], \quad
-p = \begin{bmatrix} \tilde{u} \\ \tilde{v} \\ \tilde{w} \end{bmatrix},
-$$
-
-and the 2D pixel center is
-
-$$
-\mu_{2D} =
-\begin{bmatrix}
-u \\ v
-\end{bmatrix}
-=**
-\begin{bmatrix}
-\tilde{u} / \tilde{w} \\
-\tilde{v} / \tilde{w}
-\end{bmatrix}.**
-$$[^4]
-
-To get the 2D covariance, we linearize the projection around $\mu_{\text{cam}}$. Let $\Pi: \mathbb{R}^3 \to \mathbb{R}^2$ be the projection and $J$ its Jacobian at $\mu_{\text{cam}}$:
-
-$$
-J = \left.\frac{\partial \Pi(x)}{\partial x}\right|_{x=\mu_{\text{cam}}}
-\in \mathbb{R}^{2\times 3}.
-$$[^1][^5]
-
-Then the 2D covariance is
-
-$$
-\Sigma_{2D} = J\,\Sigma_{\text{cam}}\,J^\top
-\in \mathbb{R}^{2\times 2}.
-$$[^2]
-
-This is the core rasterization formula used in 3DGS implementations (often written as $\Sigma_{2D} = T\,\Sigma_{3D}\,T^\top$ with $T$ the combined world–to–screen Jacobian).[^6][^1]
-
-## Final 2D Gaussian (splat) in screen space
-
-The projected 2D Gaussian used for splatting at pixel position $u \in \mathbb{R}^2$ is
-
-$$
-G(u) = \exp\!\left(
--\tfrac{1}{2} (u - \mu_{2D})^\top \Sigma_{2D}^{-1} (u - \mu_{2D})
-\right).
-$$[^7][^8]
 
 ## Photometric loss without masking
 
