@@ -8,15 +8,221 @@
 *   Christopher Mandengs [486554]
 
 ## Description of the Conducted Research
+- **Platform:**  
+  Experiments were run primarily on **Google Colab Pro** with an NVIDIA **T4 GPU**. This setup offers:
+  - GPU acceleration needed for efficient 3DGS training and rendering.  
+  - A reproducible, shareable environment suitable for course projects.  
+  - Direct integration with Google Drive for dataset and artifact management.
 
-This project investigates methods to improve the robustness of 3D Gaussian Splatting (3DGS) when dealing with dynamic scenes containing moving objects. Standard 3DGS struggles in such scenarios, often producing artifacts like ghosting and blurring. To address this, we explored two primary strategies for integrating 2D semantic masks into the 3DGS training pipeline to suppress reconstruction artifacts caused by dynamic objects:
+Key concepts:
 
-1.  **Loss Masking**: This approach involves modifying the loss function to ignore the regions of the image that contain dynamic objects. The L1 loss is multiplied by a binary mask where static pixels have a value of 1 and dynamic pixels have a value of 0. This way, the model is not penalized for errors in the dynamic regions, effectively learning to ignore them.
+- **Reproducibility:** Clearly documenting the environment (hardware, runtime, and dependencies) so that other students or reviewers can re‑run our experiments.  
+- **GPU acceleration:** Leveraging parallel computation on GPUs to handle the heavy rasterization and optimization workload in 3DGS.
 
-2.  **Ray Filtering**: This is a more direct approach where the rendering process itself is altered. During the rasterization of the Gaussians, we filter out the rays that would project to pixels marked as dynamic in the 2D mask. This prevents the dynamic objects from ever being incorporated into the 3D scene representation.
+***
 
-The project's hypothesis is that both methods will significantly reduce artifacts and improve the photorealism of the reconstructed scenes compared to an unmasked baseline. We evaluated the effectiveness of these two strategies by comparing them against a baseline 3DGS model trained on the same dataset without any masking. The evaluation was performed quantitatively using metrics such as Peak Signal-to-Noise Ratio (PSNR), Structural Similarity Index (SSIM), and Learned Perceptual Image Patch Similarity (LPIPS), and qualitatively by inspecting the rendered images for artifacts.
+## Problem Statement and Motivation
 
+Our starting point is the observation that 3DGS optimizes a set of Gaussians so that rendered views match a collection of input images. This works well when the scene is static, but if cars, arms, or people move across frames, the optimization tries to “bake” these transient objects into a single static 3D structure. As a result, the model fits mutually inconsistent observations and produces artifacts such as faint “ghosts” of the moving object at multiple positions, smeared textures along motion trajectories, and noisy or unstable geometry in regions where motion occurs.
+
+We aim to improve robustness of 3DGS to such dynamics without moving to a fully dynamic (4D) representation. Instead of modeling time explicitly, we ask whether we can obtain a clean static reconstruction simply by ignoring pixels that correspond to moving objects during training.
+
+Key concepts:
+
+- **Static vs dynamic scene assumption:** Classical radiance fields and 3DGS implicitly assume that the world does not change over time throughout the capture sequence; violations of this assumption cause inconsistent supervision.  
+- **Artifacts:** Undesired patterns in reconstructions—ghosting, blurring, noisy geometry—that arise when a static model tries to fit observations from a changing scene.
+
+***
+
+## Related Work
+
+Our work is grounded in three main lines of research:
+
+- **3D Gaussian Splatting:** The core method we build on, where a scene is modeled as a set of Gaussians and rendered in real time by projecting and alpha‑compositing their 2D footprints.  
+- **4D Gaussian Splatting / dynamic NeRFs:** Methods that explicitly model time or motion to reconstruct dynamic scenes. These approaches can capture moving objects but introduce additional complexity and higher computational cost.  
+- **Mask‑based methods:** Prior works that use semantic or instance masks to remove transient content (cars, pedestrians, sky, reflections) from training, thereby focusing the model on stable parts of the scene.
+
+Key concepts:
+
+- **Radiance fields:** Functions that map 3D position and viewing direction to color and density, forming the foundation for NeRF‑like and 3DGS‑like methods.  
+- **4D representation:** Extending the domain of the radiance field to include time, enabling explicit modeling of dynamic objects but at a significantly higher complexity.  
+- **Semantic masks:** Binary or multi‑class images labeling pixels by category (e.g. “manipulator arm” vs “background”), which can be used to selectively include or exclude regions from training.
+
+***
+
+## Dataset and Data Generation
+
+To systematically study the effect of dynamic objects and masking, we construct a synthetic dataset where ground truth geometry and motion are fully controlled.
+
+- We create a **static background** (e.g. walls and floor) and a **moving manipulator** (or similar object), which follows a predefined trajectory over time.  
+- From multiple camera viewpoints, we render:
+  - RGB frames that serve as ground‑truth images for the 3DGS optimization.  
+  - Per‑pixel **binary masks** indicating dynamic pixels (belonging to the moving object) and static pixels (background).  
+  - **Camera poses** (intrinsics and extrinsics) required for 3DGS, ensuring every frame has accurate calibration.
+
+Synthetic data offers full control over motion, lighting, and geometry, while making masks straightforward to generate without relying on external segmentation networks.
+
+Key concepts:
+
+- **Synthetic data:** Programmatically generated scenes that enable controlled experiments, reproducible conditions, and access to perfect labels.  
+- **Camera intrinsics and extrinsics:** Parameters that define how 3D points map to 2D pixels: intrinsics capture focal length and principal point; extrinsics capture the camera’s pose (rotation and translation).  
+- **Masks:** Image‑sized boolean or 0/1 arrays that mark which pixels correspond to dynamic objects and which belong to the static background.
+
+***
+
+## Baseline 3D Gaussian Splatting
+
+As a reference, we use an unmodified 3DGS training pipeline.
+
+- The scene is represented by \(N\) Gaussians, each with a mean (3D position), covariance, color, and opacity.  
+- During each training iteration, we sample rays through pixels, project the Gaussians into image space, and rasterize them as elliptical 2D “splats” that are alpha‑composited along each ray.  
+- We minimize a photometric loss (e.g. L1 loss, optionally combined with SSIM) between the rendered image and the ground‑truth image across all pixels and training views.
+
+Because no masking is applied, the baseline model treats dynamic object pixels as if they were part of a static scene, which leads to ghosting and smearing in the reconstructions.
+
+Key concepts:
+
+- **Gaussian splat:** The 2D footprint of a 3D Gaussian on the image plane, rendered as an anisotropic elliptical blob whose size and orientation depend on the covariance and camera projection.  
+- **Alpha compositing:** Front‑to‑back blending along each ray, where each Gaussian contributes color and opacity, and later Gaussians are attenuated by the accumulated transparency of earlier ones.  
+- **Photometric loss:** A loss function that measures per‑pixel differences between predicted and ground‑truth colors, typically using L1/L2 distances and sometimes perceptual components like SSIM.
+
+***
+
+## Dynamic Object Masking – Concept
+
+Our central idea is to **shield the static scene reconstruction from the influence of moving objects** by using per‑pixel masks during training. For every training image, we assume a mask \(M(u)\) is available that labels pixels belonging to dynamic objects.
+
+Rather than letting the model explain both static and dynamic regions with the same static Gaussians, we integrate these masks into training in two different ways. The goal is to use all images but only let static regions drive the optimization.
+
+Key concepts:
+
+- **Mask integration:** Incorporating 2D masks into the training pipeline, either at the **loss level** (which pixels contribute to the loss) or at the **rendering level** (which rays or Gaussian contributions are considered at all).  
+
+***
+## Strategy 1 – Loss Masking (Gradient Masking)
+
+In the loss masking strategy, we keep the rendering pipeline unchanged and only modify the loss computation.
+
+Instead of computing the loss over all pixels, we multiply the pixelwise error by the static‑region mask \(M\), where:
+
+- \(M(u) = 1\) for static pixels.  
+- \(M(u) = 0\) for dynamic pixels.
+
+This produces a masked loss:
+
+\[
+\mathcal{L}_{\text{mask}} = \frac{\sum_{u} M(u)\,\text{error}(u)}{\sum_{u} M(u) + \varepsilon},
+\]
+
+where \(\text{error}(u)\) can be the L1 error or a combination of L1 and other terms, and \(\varepsilon\) prevents division by zero. Gradients are therefore propagated only from static background pixels.
+
+Key concepts:
+
+- **Masked loss:** A loss function where each pixel’s contribution is weighted by the mask \(M(u)\), so only static pixels influence the optimization.  
+- **Gradient masking:** By setting the error to zero on dynamic pixels, the optimizer does not attempt to fit those areas, and the Gaussians are driven mainly by stable, consistent content.  
+- **Data efficiency:** All frames, including those with dynamic objects, still provide supervision—but only in the regions labeled as static.
+
+Usage interpretation:
+
+- **Pros:** Very simple to implement, compatible with any photometric loss, and leaves the core training loop and rendering code almost unchanged.  
+- **Cons:** Dynamic regions still appear in the input images; if masks are imperfect, some artifact leakage from mis‑labeled pixels can persist.
+
+***
+
+## Strategy 2 – Ray Filtering (Geometry Masking)
+
+Ray filtering enforces masking at the level of ray sampling and rendering.
+
+We explore two equivalent ways to apply this idea:
+
+- **Ray selection:** Only sample rays that pass through static pixels, completely ignoring rays whose corresponding pixels are dynamic. In this case, dynamic regions are never even considered in the loss.  
+- **Contribution masking:** For rays passing through a dynamic pixel, we set the contribution of Gaussians to zero (e.g. \(\alpha_i^{\text{eff}}(u) = M(u)\,\alpha_i(u)\)), effectively removing those rays from the optimization.
+
+In both variants, the training signal from dynamic regions is removed more directly than in loss masking, which operates only at the loss level.
+
+Key concepts:
+
+- **Ray:** A 3D line from the camera center through a pixel, along which Gaussians are intersected and composited.  
+- **Ray selection:** Choosing which rays are traced based on the mask, so only rays that see static content contribute to the objective.  
+- **Geometry filtering:** Preventing Gaussians that lie along dynamic pixels from receiving training signal, leading to a cleaner static geometry.
+
+Usage interpretation:
+
+- **Pros:** Provides stronger isolation of static geometry from dynamic content and can reduce ghost artifacts even more aggressively.  
+- **Cons:** Requires more invasive modifications to sampling and rasterization; if too many rays are dropped, training can become data‑starved in certain regions, potentially harming reconstruction there.
+
+***
+
+## Training Setup and Hyperparameters
+
+To ensure a fair comparison between the baseline and both masking strategies, we keep most training settings consistent.
+
+Typical choices include:
+
+- **Iterations / epochs:** A fixed number of iterations (e.g. 5,000) for all three models.  
+- **Learning rate and optimizer:** A standard optimizer such as Adam with a chosen learning rate schedule.  
+- **Resolution scaling:** Training at a reduced image resolution (e.g. 256×144) to balance fidelity and runtime.  
+- **Batch size:** Defined in terms of rays or pixels per iteration, depending on the implementation.
+
+Key concepts:
+
+- **Optimization loop:** The repeated cycle of sampling rays, rendering images, computing the masked or unmasked loss, and updating the Gaussian parameters.  
+- **Densification / pruning (if used):** Mechanisms in 3DGS that adapt the set of Gaussians (splitting, pruning, or relocating them) to better cover the scene over time.  
+- **Seed and reproducibility:** Fixing random seeds for ray sampling and initialization to make runs comparable across different training configurations.
+
+***
+
+## Rasterization / Projection Section
+
+Here we explain how a 3D Gaussian is turned into a 2D splat suitable for rasterization.
+
+- First, we transform the Gaussian mean and covariance from world space to camera space using the camera extrinsics (rotation and translation).  
+- Next, we linearize the camera projection around the Gaussian’s mean and apply its Jacobian to the 3D covariance. This yields a 2D covariance matrix describing an ellipse in the image plane.  
+- Finally, we use this 2D covariance to evaluate the Gaussian’s footprint in pixel space and alpha‑composite these contributions along each ray, ordered by depth.
+
+Key concepts:
+
+- **Covariance projection:** The 2D covariance is computed as \(\Sigma_{2D} = J \Sigma_{3D} J^\top\), where \(J\) is the Jacobian of the projection at the Gaussian’s center.  
+- **Screen‑space ellipse:** The visible “shadow” of the 3D Gaussian in image coordinates, which defines how wide and oriented the splat is.  
+- **Depth sorting:** Ordering Gaussians along each ray by distance from the camera so that alpha compositing correctly models occlusion.
+
+***
+
+## Evaluation Metrics – PSNR
+
+We use PSNR (Peak Signal‑to‑Noise Ratio) to quantify pixelwise fidelity between rendered and ground‑truth images. PSNR is derived from mean squared error (MSE): lower MSE corresponds to higher PSNR, expressed in decibels.
+
+Key concepts:
+
+- **MSE (mean squared error):** The average squared difference between rendered and ground‑truth pixel values.  
+- **Dynamic range:** It is crucial to use the correct pixel scale (e.g.  vs ) when computing MSE and MAX; otherwise PSNR values are meaningless.[1]
+- **Interpretation:** PSNR is useful for comparing different model variants numerically, but images with similar PSNR may still look noticeably different perceptually.
+
+***
+
+## Evaluation Metrics – SSIM
+
+We also report SSIM (Structural Similarity Index) as a more perceptual metric. SSIM compares local patterns of luminance, contrast, and structure, and is computed over small windows and averaged, yielding scores typically in the range \([0,1]\).
+
+Key concepts:
+
+- **Structural similarity:** SSIM checks whether edges, textures, and local structures align between the reconstructed and ground‑truth images, rather than comparing only raw pixel values.  
+- **Local windows:** Evaluating SSIM over patches makes it more robust to global intensity shifts and small misalignments than pure MSE.  
+- **Interpretation:** Higher SSIM indicates better preservation of structures such as edges of the manipulator and background features, complementing the information given by PSNR.
+
+***
+
+## Evaluation Metrics – LPIPS
+
+LPIPS (Learned Perceptual Image Patch Similarity) is used as a perceptual distance metric in a deep feature space. Rendered and ground‑truth images are passed through a pretrained CNN, and differences in their feature maps at multiple layers are aggregated into a single score.
+
+Key concepts:
+
+- **Perceptual distance:** LPIPS measures how different images appear to a deep network trained on natural images, often correlating better with human judgments than PSNR and SSIM.  
+- **Feature maps:** Intermediate activations (e.g. from VGG or AlexNet) that capture edges, textures, and high‑level semantics.  
+- **Interpretation:** Lower LPIPS indicates that the reconstruction looks more similar to the ground truth; it is particularly sensitive to ghosting, smearing, and texture distortions that might be under‑penalized by PSNR.
+
+***
 ## Demonstration (Video)
 
 A video demonstrating the results of our project can be found here: (https://github.com/jacob936/Improving-the-Robustness-of-Gaussian-splatting-by-masking-dynamic-Objects/blob/main/Image%20and%20Videos/VID-20251210-WA0017.mp4)
@@ -70,7 +276,10 @@ This project was developed and executed on **Google Colab Pro** using a **T4 GPU
 Here are the instructions to run the different parts of the project.
 
 ### How to start model training:
-
+Copy content from drive
+```
+cp -r /content/drive/MyDrive/3dgs_data/generated_data /content/
+```
 *   **Baseline Model (no masking):**
 
     ```bash
@@ -264,6 +473,22 @@ The experiments show that a simple training-time loss mask can substantially imp
 Beyond the numerical gains, the results highlight that loss masking offers a practical path to robustness without modifying the core 3DGS architecture or introducing additional prediction heads. The method integrates cleanly into existing pipelines and remains compatible with techniques such as transient decoupling and artifact-aware regularization, making it a lightweight baseline for dynamic-scene mitigation in scenarios where PSNR, SSIM, and LPIPS are critical evaluation criteria. This makes the approach attractive for real-world deployments where scenes contain pedestrians, vehicles, or other transients but engineering budgets do not permit complex model changes.​
 
 Finally, the project establishes a reproducible pipeline—from mask generation through training to metric computation and result export—that can be reused to benchmark future methods on dynamic-scene robustness. The released code and metrics (PSNR 9.05→18.35, SSIM 0.784→0.88, LPIPS 0.506→0.08, and 107× L1 reduction) provide a concrete reference point for comparing masking strategies and artifact-suppression methods in 3D Gaussian Splatting. Future work could extend this benchmark to larger and more challenging datasets, incorporate learned or probabilistic masks, and explore combinations with transient modeling and SLAM-style priors to further tighten the link between numerical metrics and perceived reconstruction quality in dynamic environments
+## Conclusion and Future Work
+
+We conclude that integrating dynamic‑object masks into the 3DGS training pipeline is an effective strategy for obtaining cleaner static reconstructions in scenes with motion. Both loss masking and ray filtering reduce artifacts compared to the baseline, each with its own trade‑offs in terms of implementation complexity and robustness.
+
+For future work, we plan to:
+
+- **Learn masks automatically**, for example using a segmentation network, to apply the approach to real‑world videos.  
+- **Extend from static‑scene robustness to full dynamic‑scene modeling**, possibly by combining masked static 3DGS with 4D Gaussians or other dynamic representations.  
+- **Incorporate temporal consistency and multi‑view constraints**, such as temporal smoothing of masks and explicit regularization across adjacent frames.
+
+Key concepts:
+
+- **Static‑background reconstruction vs dynamic‑object modeling:** Our current work focuses on cleaning up the static part of the scene; modeling the moving objects themselves is left for future work.  
+- **Scalability:** Moving from controlled synthetic scenes to complex real‑world captures with multiple dynamic agents.  
+- **Integration with broader pipelines:** Using a robust static 3DGS representation in robotics, SLAM, AR, and other applications where dynamic objects are frequent but often treated as nuisances.
+
 ## References
 - Kerbl et al. (2023). 3D Gaussian Splatting
 - Repository: github.com/prinssalex/3dgs-dynamic-masking-47
