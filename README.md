@@ -394,7 +394,7 @@ This formulation makes the connection between “skipping Gaussians on dynamic p
 
 ## Evaluation metrics
 
-# Give PSNR SSIM and LPIPS evaluation formulas and usage tips
+# PSNR SSIM and LPIPS evaluation formulas and usage tips
 
 
 ## PSNR
@@ -455,10 +455,7 @@ where $$\hat{y}_l$$ are channel‑wise unit‑normalized features and $$w_l$$ ar
 - Lower is better; 0 means identical in the chosen feature space.[^15][^11]
 - Much better aligned with human judgments of perceptual similarity than PSNR/SSIM, especially for small misalignments, blur, or texture differences.[^12][^13]
 - In code, prefer a standard implementation (e.g. `pip install lpips` and use the official PyTorch interface) and fix the backbone (e.g. `net='vgg'`) so your scores are comparable across experiments.[^13][^15]
-
-For your README you can add a short paragraph explaining that you report “higher‑is‑better” metrics (PSNR, SSIM) and a “lower‑is‑better” perceptual metric (LPIPS), and mention that you average them over all held‑out views in the test set.
 <span style="display:none">[^16][^17][^18][^19][^20]</span>
-
 
 ### Project Structure
 The folder is structured as follows:
