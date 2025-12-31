@@ -1,4 +1,4 @@
-Method,PSNR ↑,SSIM ↑,LPIPS ↓,Static L1 ↓,Improvement,Training Iters,Gaussians
-Baseline (Unmasked),9.05,0.784,0.506,0.0,Baseline,7000,16 (fixed)
-Loss-Mask (Static-only),18.35,0.88,0.08,0.0,107x,7000,16 (fixed)
-Ray-Filter (Static-only),9.04,0.65,0.24,0.0,107x,7000,16 (fixed)
+Method,PSNR ↑,SSIM ↑,LPIPS ↓,Static L1 ↓,Improvement vs Baseline (L1_Static),Training Iters
+Baseline (30k iters),25.2396,0.9226,0.1717,0.0037,1.0,30000
+Loss-Mask (30k iters),22.9198,0.9075,0.2165,0.0026,1.4230769230769231,30000
+Ray-Filter (30k iters),20.6078,0.8634,0.1929,0.01,0.37,30000
