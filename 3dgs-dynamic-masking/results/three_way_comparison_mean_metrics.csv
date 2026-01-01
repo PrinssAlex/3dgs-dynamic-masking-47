@@ -1,0 +1,4 @@
+Model,PSNR,SSIM,LPIPS,L1_Static
+baseline,25.2396,0.9226,0.1717,0.0037
+loss_mask,22.9198,0.9075,0.2165,0.0026
+ray_filter,20.6078,0.8634,0.1929,0.01

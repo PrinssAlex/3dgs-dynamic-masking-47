@@ -1,6 +1,0 @@
-
-source_path /content/drive/MyDrive/MLP/3dgs-dynamic-masking/data/generated
-model_path /content/drive/MyDrive/MLP/3dgs-dynamic-masking/output/masked_loss
-white_background True
-sh_degree 0
-iterations 7000
