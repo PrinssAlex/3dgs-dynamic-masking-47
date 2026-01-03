@@ -105,8 +105,8 @@ In the loss masking strategy, we keep the rendering pipeline unchanged and only 
 
 Instead of computing the loss over all pixels, we multiply the pixelwise error by the static‑region mask \(M\), where:
 
-- \(M(u) = 1\) for static pixels.  
-- \(M(u) = 0\) for dynamic pixels.
+- $$\(M(u) = 1\)$$for static pixels.  
+- $$\(M(u) = 0\)$$ for dynamic pixels.
 
 This produces a masked loss:
 
@@ -221,12 +221,12 @@ Key concepts:
 ***
 ## Demonstration (Video)
 
-A video demonstrating the results of our project can be found here: (https://github.com/jacob936/Improving-the-Robustness-of-Gaussian-splatting-by-masking-dynamic-Objects/blob/main/Image%20and%20Videos/VID-20251210-WA0017.mp4)
+A video demonstrating the results of our project can be found here: (https://github.com/PrinssAlex/3dgs-dynamic-masking-47/blob/main/Videos/groundtruth.mp4)
 
 You can also find a GIF animation of the results below:
 
-![GIF of results](https://github.com/PrinssAlex/3dgs-dynamic-masking-47/blob/main/Image%20and%20Videos/images.gif)
-![GIF of results](https://github.com/PrinssAlex/3dgs-dynamic-masking-47/blob/main/Image%20and%20Videos/masks.gif)
+![GIF of results](https://github.com/PrinssAlex/3dgs-dynamic-masking-47/blob/main/Videos/groundtruth.gif)
+![GIF of results](https://github.com/PrinssAlex/3dgs-dynamic-masking-47/blob/main/Videos/masking.gif)
 
 ## Installation and Deployment
 
@@ -275,32 +275,37 @@ Here are the instructions to run the different parts of the project.
 Copy content from drive
 ```
 cp -r /content/drive/MyDrive/3dgs_data/generated_data /content/
+%cd /content/gaussian-splatting
+OUTPUT_ROOT = "/content/drive/MyDrive/ML/3dgs-dynamic-masking/output"
+DATA_ROOT   = "/content/drive/MyDrive/ML/3dgs-dynamic-masking/data/generated"
 ```
 *   **Baseline Model (no masking):**
 
     ```bash
     !python train.py \
-    -s "/content/drive/MyDrive/MLP/3dgs-dynamic-masking/data/generated" \
-    -m "/content/drive/MyDrive/MLP/3dgs-dynamic-masking/output/baseline" \
+    -s "{DATA_ROOT}" \
+    -m "{OUTPUT_ROOT}/baseline_2000_init" \
     --iterations 7000 \
     --eval \
     --white_background \
-    --densify_from_iter 0 \
-    --densify_until_iter 0 \
-    --densification_interval 1000000 \
-    --opacity_reset_interval 1000000
+    --densify_from_iter 1000 \
+    --densify_until_iter 6000 \
+    --densification_interval 3000 \
+    --opacity_reset_interval 3000
     ```
 
 **Strategy 1: Loss Masking:**
 
     ```bash
-    !python train_loss_mask.py -s /content/drive/MyDrive/MLP/3dgs-dynamic-masking/data/generated -m //content/drive/MyDrive/MLP/3dgs-dynamic-masking/output/loss_mask --iterations 5000 --mask_dir c
+   ```bash
+!python train_loss_mask.py -s /content/drive/MyDrive/MLP/3dgs-dynamic-masking/data/generated -m //content/drive/MyDrive/ML/3dgs-dynamic-masking/output/loss_mask --iterations 5000 --mask_dir c
+```
     ```
 
 **Strategy 2: Ray Filtering:**
 
     ```bash
-    python train_ray_filter.py -s /content/drive/MyDrive/MLP/3dgs-dynamic-masking/data/generated -m //content/drive/MyDrive/MLP/3dgs-dynamic-masking/output/ray_filter --iterations 7000 --mask_dir /3dgs-dynamic-masking-47/data/generated/masks
+    python train_ray_filter.py -s /content/drive/MyDrive/MLP/3dgs-dynamic-masking/data/generated -m //content/drive/MyDrive/ML/3dgs-dynamic-masking/output/ray_filter --iterations 7000 --mask_dir /3dgs-dynamic-masking-47/data/generated/masks
     ```
 Note: The training scripts `train_loss_mask.py` and `train_ray_filter.py` are modified versions of the original `train.py` script from the 3DGS repository.*
 
@@ -478,7 +483,9 @@ gaussian-splatting/
 ├── data/generated/          # PyBullet dataset-Contains the synthetic dataset used for training and evaluation.
 │   ├── images/             # 30 RGB frames
 │   ├── masks/              # Binary masks
-│   └── camera_poses.json   # Camera parameters
+│   └── sparse/0
+│   └── database.db
+   
 ├── output/       # Training results- Contains the output of the training runs for the baseline, loss masking, and ray filtering models.
 │   ├── baseline/           # Unmasked training- Output for the baseline model.
 │   ├── loss_mask/          # Loss masking -Output for the loss masking model.
@@ -488,7 +495,7 @@ gaussian-splatting/
 │   ├── figure_psnr_comparison.png - Side-by-side comparison images of the rendered views.
 │   └── figure_l1_error_comparison.png
 
-├── notebooks/               # Colab notebook
+├── code/               # Colab notebook
 ├── images_and_videos
 ├── requirements.txt         # Dependencies
 └── README.md               # This file
@@ -498,9 +505,9 @@ A brief summary of the results shows that both the loss masking and ray filterin
 ## Key Results
 | Model|PSNR |SSIM |LPIPS| Static L1 Error|
 |----------|-----------------|-----------|-------------|---------|
-| Baseline | 9.05 | 0.784 | 0.506|0.0
-| Loss Masking | 18.35 |0.88 | 0.08 |0.0
-| Ray Filtering |9.04 | 0.65 | 0.24|0.0
+| Baseline | 25.2396 | 0.9226 | 0.1717|0.0037
+| Loss Masking | 22.9198 |0.9075 | 0.2165 |0.0026
+| Ray Filtering |20.6078 | 0.8634 | 0.1929|0.01
 
 ## Description of the Obtained Results
 The results of our experiments, including the trained models, rendered images, and performance metrics, are available in the results folder.
