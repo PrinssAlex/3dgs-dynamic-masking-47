@@ -103,23 +103,23 @@ Key concepts:
 
 In the loss masking strategy, we keep the rendering pipeline unchanged and only modify the loss computation.
 
-Instead of computing the loss over all pixels, we multiply the pixelwise error by the static‑region mask \(M\), where:
+Instead of computing the loss over all pixels, we multiply the pixelwise error by the static‑region mask $M\$, where:
 
-- $$\(M(u) = 1\)$$for static pixels.  
-- $$\(M(u) = 0\)$$ for dynamic pixels.
+- $M(u) = 1\$ for static pixels.  
+- $M(u) = 0\$ for dynamic pixels.
 
 This produces a masked loss:
 
 $$
-\mathcal{L}_{\text{mask}} = \frac{\sum_{u} M(u)\,\text{error}(u)}{\sum_{u} M(u) + \varepsilon},
+\mathcal{L}_{\text{mask}} = \frac{\sum_{u} M(u)\ \text{error}(u)}{\sum_{u} M(u) + \varepsilon},
 \
 $$
 
-where \(\text{error}(u)\) can be the L1 error or a combination of L1 and other terms, and \(\varepsilon\) prevents division by zero. Gradients are therefore propagated only from static background pixels.
+where $\text{error}(u)\$ can be the L1 error or a combination of L1 and other terms, and $\varepsilon\$ prevents division by zero. Gradients are therefore propagated only from static background pixels.
 
 Key concepts:
 
-- **Masked loss:** A loss function where each pixel’s contribution is weighted by the mask \(M(u)\), so only static pixels influence the optimization.  
+- **Masked loss:** A loss function where each pixel’s contribution is weighted by the mask $M(u)\$, so only static pixels influence the optimization.  
 - **Gradient masking:** By setting the error to zero on dynamic pixels, the optimizer does not attempt to fit those areas, and the Gaussians are driven mainly by stable, consistent content.  
 - **Data efficiency:** All frames, including those with dynamic objects, still provide supervision—but only in the regions labeled as static.
 
@@ -187,38 +187,43 @@ Key concepts:
 - **Screen‑space ellipse:** The visible “shadow” of the 3D Gaussian in image coordinates, which defines how wide and oriented the splat is.  
 - **Depth sorting:** Ordering Gaussians along each ray by distance from the camera so that alpha compositing correctly models occlusion.
 
+
+Here is your text with an additional “Evaluation Metrics – L1 Loss” subsection, consistent in style and phrasing with the others.
+
 ***
-## Evaluation Metrics – PSNR
-We use PSNR (Peak Signal‑to‑Noise Ratio) to quantify pixelwise fidelity between rendered and ground‑truth images. PSNR is derived from mean squared error (MSE): lower MSE corresponds to higher PSNR, expressed in decibels.
+### Evaluation Metrics – L1 Loss
+
+In addition to perceptual metrics, we also report the average **L1 loss** between the reconstructed and ground‑truth images. L1 loss measures the mean absolute difference in pixel values and is closely related to the photometric objective used during training in many 3DGS implementations.
+
 Key concepts:
-- **MSE (mean squared error):** The average squared difference between rendered and ground‑truth pixel values.  
-- **Dynamic range:** It is crucial to use the correct pixel scale (e.g.  vs ) when computing MSE and MAX; otherwise PSNR values are meaningless.[1]
-- **Interpretation:** PSNR is useful for comparing different model variants numerically, but images with similar PSNR may still look noticeably different perceptually.
+
+- **Absolute error:** Unlike MSE, which squares differences, L1 uses absolute differences, making it less sensitive to large outliers and often yielding sharper reconstructions.  
+- **Alignment with training objective:** When L1 (or a masked L1) is used as the training loss, reporting L1 at test time directly reflects how well the model optimizes its primary objective.  
+- **Interpretation:** Lower L1 indicates smaller average pixel deviations. It complements PSNR (which is derived from MSE) by giving a more robust view of pixelwise error, especially in regions with sharp edges and high contrast.
 ***
 
-## Evaluation Metrics – SSIM
+### Evaluation Metrics – SSIM
 
-We also report SSIM (Structural Similarity Index) as a more perceptual metric. SSIM compares local patterns of luminance, contrast, and structure, and is computed over small windows and averaged, yielding scores typically in the range $$[0,1]\$$.
+We also report SSIM (Structural Similarity Index) as a more perceptual metric. SSIM compares local patterns of luminance, contrast, and structure, and is computed over small windows and averaged, yielding scores typically in the range $\[0,1]\$.
 
 Key concepts:
 
 - **Structural similarity:** SSIM checks whether edges, textures, and local structures align between the reconstructed and ground‑truth images, rather than comparing only raw pixel values.  
 - **Local windows:** Evaluating SSIM over patches makes it more robust to global intensity shifts and small misalignments than pure MSE.  
-- **Interpretation:** Higher SSIM indicates better preservation of structures such as edges of the manipulator and background features, complementing the information given by PSNR.
+- **Interpretation:** Higher SSIM indicates better preservation of structures such as edges of the manipulator and background features, complementing the information given by PSNR and L1.
 
 ***
 
-## Evaluation Metrics – LPIPS
+### Evaluation Metrics – LPIPS
 
 LPIPS (Learned Perceptual Image Patch Similarity) is used as a perceptual distance metric in a deep feature space. Rendered and ground‑truth images are passed through a pretrained CNN, and differences in their feature maps at multiple layers are aggregated into a single score.
 
 Key concepts:
 
-- **Perceptual distance:** LPIPS measures how different images appear to a deep network trained on natural images, often correlating better with human judgments than PSNR and SSIM.  
+- **Perceptual distance:** LPIPS measures how different images appear to a deep network trained on natural images, often correlating better with human judgments than PSNR, SSIM, or raw L1.  
 - **Feature maps:** Intermediate activations (e.g. from VGG or AlexNet) that capture edges, textures, and high‑level semantics.  
-- **Interpretation:** Lower LPIPS indicates that the reconstruction looks more similar to the ground truth; it is particularly sensitive to ghosting, smearing, and texture distortions that might be under‑penalized by PSNR.
+- **Interpretation:** Lower LPIPS indicates that the reconstruction looks more similar to the ground truth; it is particularly sensitive to ghosting, smearing, and texture distortions that might be under‑penalized by PSNR or L1.
 
-***
 ## Demonstration (Video)
 
 A video demonstrating the results of our project can be found here: (https://github.com/PrinssAlex/3dgs-dynamic-masking-47/blob/main/Videos/groundtruth.mp4)
@@ -334,23 +339,21 @@ T_i(u) = \prod_{j < i} \bigl(1 - \alpha_j(u)\bigr),
 $$
 
 where $\tau$ is a scaling factor controlling opacity.
-
-
-
 ## Photometric loss without masking
 
-Given a ground-truth image $I_{\text{gt}}$ and rendered image $I_{\theta}$ (parameters $\theta$ are all Gaussian attributes), a standard photometric loss is
+Given a ground-truth image $I_{\text{gt}}\$ and rendered image $I_{\theta}\$ (parameters $theta\$ are all Gaussian attributes), a standard photometric loss is
 
 $$
 \mathcal{L}_{\text{photo}} = \lambda_{1}\,\|I_{\theta} - I_{\text{gt}}\|_{1}
  \lambda_{\text{ssim}}\,\bigl(1 - \text{SSIM}(I_{\theta}, I_{\text{gt}})\bigr),
 $$
 
-where $\lambda_1$ and $\lambda_{\text{ssim}}$ weight the L1 and SSIM components respectively.[^3][^4]
+where $lambda_1\$ and $lambda_{\text{ssim}}\$ weight the L1 and SSIM components respectively.[^3][^4]
+
 
 ## Loss masking with static/dynamic masks
 
-Let M(u)\in \{0,1\} be a binary mask for pixel u, where M(u)=1 denotes static background and M(u)=0 denotes dynamic regions to be ignored. The masked photometric loss can be written as
+Let M(u)\ in \{0,1\} be a binary mask for pixel u, where M(u)=1 denotes static background and M(u)=0 denotes dynamic regions to be ignored. The masked photometric loss can be written as
 
 $$
 \mathcal{L}_{\text{mask}} =
@@ -399,12 +402,20 @@ This formulation makes the connection between “skipping Gaussians on dynamic p
 
 ## Evaluation metrics
 
-# PSNR SSIM and LPIPS evaluation formulas and usage tips
+# L1, PSNR, SSIM and LPIPS evaluation formulas and usage tips
 
+## L1 Loss( Also Photometric Loss)
+Formally, for a rendered image $I_{\theta}\ and ground‑truth image $I_{\text{gt}}\$, the per‑image L1 loss is
+
+$$
+\mathcal{L}_{\text{L1}} = \frac{1}{N} \sum_{u} \bigl| I_{\theta}(u) - I_{\text{gt}}(u) \bigr|,
+\$$
+
+where the sum runs over all pixels $u\$, and $N\$ is the total number of pixels.
 
 ## PSNR
 
-Given a ground‑truth image $I_{\text{gt}}$ and a reconstructed image $I$, first compute mean squared error
+Given a ground‑truth image $I_{\text{gt}}\$ and a reconstructed image $I\$, first compute mean squared error
 
 $$
 \text{MSE} = \frac{1}{N}\sum_{u} \bigl(I(u) - I_{\text{gt}}(u)\bigr)^2,
