@@ -538,7 +538,7 @@ As for the **Ray-Filter** model, it struggles across the board, scoring lowest o
 
 So, while the Loss-Mask model might not top the leaderboard in traditional benchmarks, it’s undeniably the champion when it comes to eliminating dynamic artifacts and delivering a better overall reconstruction and ultimately nove-view synthesis, exactly what the project aimed to achieve. This outcome aligns with the project's core hypothesis that training-time masking can substantially improve static scene reconstruction quality in dynamic scenes, even if global perceptual metrics do not always reflect the targeted improvement.
 
-### Plans Future work 
+### Plans for Future work 
 For future work, we plan to:
 - **Learn masks automatically**, for example using a segmentation network, to apply the approach to real‑world videos.  
 - **Extend from static‑scene robustness to full dynamic‑scene modeling**, possibly by combining masked static 3DGS with 4D Gaussians or other dynamic representations.  
