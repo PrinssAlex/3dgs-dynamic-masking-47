@@ -195,7 +195,7 @@ Key concepts:
 - **MSE (mean squared error):** The average squared difference between rendered and ground‑truth pixel values.  
 - **Dynamic range:** It is crucial to use the correct pixel scale (e.g.  vs ) when computing MSE and MAX; otherwise PSNR values are meaningless.[1]
 - **Interpretation:** PSNR is useful for comparing different model variants numerically, but images with similar PSNR may still look noticeably different perceptually.
-***
+
 
 ***
 ### Evaluation Metrics – L1 Loss
