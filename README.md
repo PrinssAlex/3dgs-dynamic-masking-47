@@ -512,8 +512,6 @@ A brief summary of the results shows that both the loss masking and ray filterin
 
 ## Description of the Obtained Results
 
-**Final Results Summary: Why Loss Masking Wins Where It Matters Most**
-
 After running a more comprehensive evaluation across 14 different camera views, the team found that while the baseline 3D Gaussian Splatting model still leads in overall image quality metrics like PSNR and SSIM, the real story lies in how each method handles the *static* parts of the scene which is precisely what this project set out to improve.
 
 The numbers tell a nuanced tale. The **Baseline** model scores higher on PSNR (24.71) and SSIM (0.913), and even edges out the others on LPIPS (0.192). This makes sense: because it tries to reconstruct everything including the moving robot arm. As a result, it often produces renders where the dynamic region looks “plausible” enough to boost those global scores. In other words, it is like getting partial credit for trying to fit the whole picture, even if parts of it are blurry or ghosted.
@@ -528,8 +526,9 @@ In short, the Loss-Mask approach does not try to win every metric; it wins the o
 As for the **Ray-Filter** model, it struggles across the board, scoring lowest on almost every metric (PSNR 21.16, SSIM 0.852, L1_Static 0.0104). Its attempt to filter out dynamic rays was not successful, leading to noisy reconstructions and poor performance both globally and locally.
 
 So, while the Loss-Mask model might not top the leaderboard in traditional benchmarks, it’s undeniably the champion when it comes to eliminating dynamic artifacts and delivering a better overall reconstruction and ultimately nove-view synthesis, exactly what the project aimed to achieve. This outcome aligns with the project's core hypothesis that training-time masking can substantially improve static scene reconstruction quality in dynamic scenes, even if global perceptual metrics do not always reflect the targeted improvement.
-For future work, we plan to:
 
+### Plans Future work 
+For future work, we plan to:
 - **Learn masks automatically**, for example using a segmentation network, to apply the approach to real‑world videos.  
 - **Extend from static‑scene robustness to full dynamic‑scene modeling**, possibly by combining masked static 3DGS with 4D Gaussians or other dynamic representations.  
 - **Incorporate temporal consistency and multi‑view constraints**, such as temporal smoothing of masks and explicit regularization across adjacent frames.
