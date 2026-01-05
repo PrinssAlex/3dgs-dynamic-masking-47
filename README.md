@@ -188,7 +188,14 @@ Key concepts:
 - **Depth sorting:** Ordering Gaussians along each ray by distance from the camera so that alpha compositing correctly models occlusion.
 
 
-Here is your text with an additional “Evaluation Metrics – L1 Loss” subsection, consistent in style and phrasing with the others.
+***
+## Evaluation Metrics – PSNR
+We use PSNR (Peak Signal‑to‑Noise Ratio) to quantify pixelwise fidelity between rendered and ground‑truth images. PSNR is derived from mean squared error (MSE): lower MSE corresponds to higher PSNR, expressed in decibels.
+Key concepts:
+- **MSE (mean squared error):** The average squared difference between rendered and ground‑truth pixel values.  
+- **Dynamic range:** It is crucial to use the correct pixel scale (e.g.  vs ) when computing MSE and MAX; otherwise PSNR values are meaningless.[1]
+- **Interpretation:** PSNR is useful for comparing different model variants numerically, but images with similar PSNR may still look noticeably different perceptually.
+***
 
 ***
 ### Evaluation Metrics – L1 Loss
